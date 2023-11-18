@@ -124,25 +124,25 @@ Numpy等科学计算的库，为了方便安装，这里建议使用Anaconda进�
 > > pip install git+https://github.com/BaoChunhui/yubaoTrader.git -U
 
 安装其他python库：
-> > pip install websocket-client
-> > pip install PySide6==6.3.0
-> > pip install pymysql
-> > pip install cryptography
-> > pip install fabric3
-> > pip install scikit-learn
-> > pip install nbformat
+> pip install websocket-client
+> pip install PySide6==6.3.0
+> pip install pymysql
+> pip install cryptography
+> pip install fabric3
+> pip install scikit-learn
+> pip install nbformat
 
 安装TA-Lib：
 windows下：
-> > pip install ./TA_Lib-0.4.24-cp310-cp310-win_amd64.whl
+> pip install ./TA_Lib-0.4.24-cp310-cp310-win_amd64.whl
 linux下：
-> > wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
-> > tar -xzvf ta-lib-0.4.0-src.tar.gz
-> > cd ta-lib/
-> > ./configure --prefix=/usr
-> > make
-> > sudo make install
-> > pip install TA-Lib
+> wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
+> tar -xzvf ta-lib-0.4.0-src.tar.gz
+> cd ta-lib/
+> ./configure --prefix=/usr
+> make
+> sudo make install
+> pip install TA-Lib
 
 如果提示你没有git, 那么你需要去安装git软件，具体的话参考系列课程的第十三课的视频。
 
