@@ -121,15 +121,21 @@ Numpy等科学计算的库，为了方便安装，这里建议使用Anaconda进�
 > pip install git+https://github.com/BaoChunhui/yubaoTrader.git
 
 如果你发现有bug或者有新的版本更新，你可以输入以下命令进行更新：
-> > pip install git+https://github.com/BaoChunhui/yubaoTrader.git -U
+> pip install git+https://github.com/BaoChunhui/yubaoTrader.git -U
 
 安装其他python库：
 > pip install websocket-client
+
 > pip install PySide6==6.3.0
+
 > pip install pymysql
+
 > pip install cryptography
+
 > pip install fabric3
+
 > pip install scikit-learn
+
 > pip install nbformat
 
 安装TA-Lib：
