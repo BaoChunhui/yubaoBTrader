@@ -103,13 +103,13 @@ Numpy等科学计算的库，为了方便安装，这里建议使用Anaconda进�
 如果你之前创建了mytrader的虚拟环境，如果不想使用了，你可以先卸载掉，然后再创建一个mytrader，卸载的命令如下:
 > conda remove -n yubaotrader --all
 
-如果提示错误的话，你要看你当前激活的虚拟环境是不是mytrader,如果当前激活的是mytrader，那么先执行:
+如果提示错误的话，你要看你当前激活的虚拟环境是不是yubaotrader,如果当前激活的是yubaotrader，那么先执行:
 > conda deactivate 
 
 然后再执行:
 > conda remove -n yubaotrader --all
 
-这里mytrader是你的虚拟环境的名称，你当然可以取其他名字，
+这里yubaotrader是你的虚拟环境的名称，你当然可以取其他名字，
 但是记得要用英文。另外你的虚拟的路径最好不要出现中文的文件路径，不然可能出现一些未知问题。
 
 4. 激活你的虚拟环境名称
@@ -118,10 +118,31 @@ Numpy等科学计算的库，为了方便安装，这里建议使用Anaconda进�
 5. 安装howtrader 
 
 直接输入如下命令
-> pip install git+https://github.com/BaoChunhui/howtrader.git
+> pip install git+https://github.com/BaoChunhui/yubaoTrader.git
 
 如果你发现有bug或者有新的版本更新，你可以输入以下命令进行更新：
-> > pip install git+https://github.com/BaoChunhui/howtrader.git -U 
+> > pip install git+https://github.com/BaoChunhui/yubaoTrader.git -U
+
+安装其他python库：
+> > pip install websocket-client
+> > pip install PySide6==6.3.0
+> > pip install pymysql
+> > pip install cryptography
+> > pip install fabric3
+> > pip install scikit-learn
+> > pip install nbformat
+
+安装TA-Lib：
+windows下：
+> > pip install ./TA_Lib-0.4.24-cp310-cp310-win_amd64.whl
+linux下：
+> > wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
+> > tar -xzvf ta-lib-0.4.0-src.tar.gz
+> > cd ta-lib/
+> > ./configure --prefix=/usr
+> > make
+> > sudo make install
+> > pip install TA-Lib
 
 如果提示你没有git, 那么你需要去安装git软件，具体的话参考系列课程的第十三课的视频。
 
