@@ -33,6 +33,11 @@ from .base import (
 )
 from .template import CtaTemplate
 
+from .result import ResultManager
+
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+
 
 # Set deap algo
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
@@ -102,12 +107,14 @@ class OptimizationSetting:
 
 
 class BacktestingEngine:
-    """"""
+    """
+    optimized BacktestingEngine
+    """
 
     engine_type: EngineType = EngineType.BACKTESTING
     gateway_name: str = "BACKTESTING"
 
-    def __init__(self) -> None:
+    def __init__(self, risk_free = None) -> None:
         """"""
         self.vt_symbol: str = ""
         self.symbol: str = ""
@@ -149,6 +156,13 @@ class BacktestingEngine:
 
         self.daily_results: Dict[date, DailyResult] = {}
         self.daily_df: DataFrame = None
+        
+        if not risk_free:
+            self.risk_free: float = 0.0
+        else:
+            self.risk_free: float = risk_free
+
+        self.rm = ResultManager()
 
     def clear_data(self) -> None:
         """
@@ -255,13 +269,14 @@ class BacktestingEngine:
                     end
                 )
 
+            start = data[0].datetime.replace(tzinfo=None)
+            end = data[-1].datetime.replace(tzinfo=None)
             self.history_data.extend(data)
 
             progress += progress_delta / total_delta
             progress = min(progress, 1)
             progress_bar = "#" * int(progress * 10)
             self.output(f"loading progress：{progress_bar} [{progress:.0%}]")
-
             start = end + interval_delta
             end += (progress_delta + interval_delta)
 
@@ -299,7 +314,7 @@ class BacktestingEngine:
         self.output("initialize strategy")
 
         self.strategy.on_start()
-        self.strategy.trading = True
+        self.strategy.trading = True  # 这里置为True之后，CtaTemplate的send_order函数才开始调用BacktestingEngine的send_order函数
         self.output("start backtesting")
 
         # Use the rest of history data for running backtesting
@@ -327,6 +342,8 @@ class BacktestingEngine:
             d: date = trade.datetime.date()
             daily_result: DailyResult = self.daily_results[d]
             daily_result.add_trade(trade)
+
+            self.rm.update_trade(trade)
 
         # Calculate daily result by iteration.
         pre_close = 0
@@ -395,60 +412,163 @@ class BacktestingEngine:
             return_drawdown_ratio: float = 0
         else:
             # Calculate balance related time series data
-            df["balance"] = df["net_pnl"].cumsum() + self.capital
-            df["return"] = np.log(df["balance"] / df["balance"].shift(1)).fillna(0)
+            df["balance"] = df["net_pnl"].cumsum() + self.capital  # 策略每天的净值
+            df["log_balance"] = np.log(df["balance"])  # 对数坐标下策略每天的净值
+            # 对数坐标下策略每天的净值做线性回归
+            x = df.reset_index().reset_index()["index"].values.reshape((-1, 1))
+            y = df["log_balance"].values
+            model = LinearRegression()
+            model.fit(x, y)
+            y_pred = model.predict(x)
+            df["LinearRegression_log_balance"] = y_pred
+
+            df["return"] = np.log(df["balance"] / df["balance"].shift(1)).fillna(0)  # 逐日盯市盈亏率，log盈亏率，底为e
             df["highlevel"] = (
                 df["balance"].rolling(
                     min_periods=1, window=len(df), center=False).max()
-            )
-            df["drawdown"] = df["balance"] - df["highlevel"]
-            df["ddpercent"] = df["drawdown"] / df["highlevel"] * 100
+            )  # 从开始交易的第一天（策略完成初始化的那一天）到当前这天净值到达过的最高位
+            df["drawdown"] = df["balance"] - df["highlevel"]  # 回撤
+            df["ddpercent"] = df["drawdown"] / df["highlevel"] * 100  # 百分比回撤
+
+            # 取交易配对信息
+            df_trades = pd.DataFrame.from_dict([r.__dict__ for r in self.rm.get_results()])
+            df_trades["duration"] = df_trades["close_dt"] - df_trades["open_dt"]
+            df_trades["balance"] = df_trades["pnl"].cumsum() + self.capital
+            df_trades["return"] = ((df_trades["balance"] / df_trades["balance"].shift(1) - 1) * 100).fillna(0)  # 主笔对冲盈亏率
+            df_trades["return"][0] = (df_trades["pnl"][0] / self.capital) * 100
+            # df_trades["MAE"], df_trades["MFE"] = df_trades.apply(lambda x:calculate_MAE(x['open_dt'], x['close_dt'], x['trades']), axis = 1)
+            # 处理配对后的交易信息
+            mfe_list, mae_list = [], []
+            maximum_number_of_consecutive_losses, number_of_consecutive_losses = 0, 0  # 最大连续亏损交易次数
+            for i in range(df_trades.shape[0]):
+                # 统计最大连续亏损交易次数
+                pnl = df_trades.iloc[i, :]["pnl"]
+                if pnl < 0:
+                    number_of_consecutive_losses += 1
+                else:
+                    maximum_number_of_consecutive_losses = max(maximum_number_of_consecutive_losses, number_of_consecutive_losses)
+                    number_of_consecutive_losses = 0
+
+                # 计算最大有利变化幅度MFE(maximum favorable excursion)和最大不利变化幅度MAE(maximum adverse excursion)
+                holding_bars: list[BarData] = self.history_data[int((df_trades.iloc[i, :]['open_dt'].to_pydatetime() - self.history_data[0].datetime)/timedelta(minutes=1)):
+                                                                int((df_trades.iloc[i, :]['close_dt'].to_pydatetime() - self.history_data[0].datetime)/timedelta(minutes=1) + 1)]
+                highest = max([bar.high_price for bar in holding_bars])
+                lowest = min([bar.low_price for bar in holding_bars])
+                open_price = df_trades.iloc[i, :]['trades'][0].price
+                direction = df_trades.iloc[i, :]['trades'][0].direction
+                if direction == Direction.LONG:
+                    mfe = round((abs(highest-open_price)/open_price) * 100, 2)  # 最大有利变化幅度
+                    mae = round((abs(lowest-open_price)/open_price) * 100, 2)  # 最大不利变化幅度
+                else:
+                    mfe = round((abs(lowest-open_price)/open_price) * 100, 2)  # 最大有利变化幅度
+                    mae = round((abs(highest-open_price)/open_price) * 100, 2)  # 最大不利变化幅度
+                mfe_list.append(mfe)
+                mae_list.append(mae)
+            df_trades["MFE"] = mfe_list  # 最大有利变化幅度MFE(maximum favorable excursion)
+            df_trades["MAE"] = mae_list  # 最大不利变化幅度MAE(maximum adverse excursion)
+
+            # 增加一些指标
+            average_duration: pd._libs.tslibs.timedeltas.Timedelta = df_trades["duration"].mean()  # 平均持仓周期
+            min_duration: pd._libs.tslibs.timedeltas.Timedelta = df_trades["duration"].min()  # 最小持仓时间
+            max_duration: pd._libs.tslibs.timedeltas.Timedelta = df_trades["duration"].max()  # 最大持仓时间
+            total_open_to_close_trade_count: int = df_trades.shape[0]  # 交易次数，从开仓到全部平仓算一次
+            profit_trade_count: int = df_trades[df_trades['pnl'] > 0].shape[0]  # 盈利的交易次数
+            loss_trade_count: int = df_trades[df_trades['pnl'] < 0].shape[0]  # 亏损的交易次数
+            winning_percentage: float = round((profit_trade_count/total_open_to_close_trade_count) * 100, 2)  # 胜率
+            total_profit: float = df_trades[df_trades['pnl'] > 0]['pnl'].sum()  # 总盈利金额
+            total_loss: float = df_trades[df_trades['pnl'] < 0]['pnl'].sum()  # 总亏损金额
+            profit_loss_sharing_ratio: float = abs(total_profit / total_loss)  # 盈亏比
+            average_profit_return: float = df_trades[df_trades['return'] > 0]['return'].mean()  # 盈利的交易平均百分比收益
+            average_loss_return: float = df_trades[df_trades['return'] < 0]['return'].mean()  # 亏损的交易平均百分比收益
+            max_profit_return: float = df_trades[df_trades['return'] > 0]['return'].max()  # 一笔交易最大盈利多少
+            max_loss_return: float = df_trades[df_trades['return'] < 0]['return'].min()  # 一笔交易最大亏损多少 
+            average_return: float = average_profit_return * winning_percentage / 100 + average_loss_return * (100 - winning_percentage) / 100  # 均值收益率
+
+            e_ratio: float = df_trades["MFE"].sum() / df_trades["MAE"].sum()  # e比率
+            # 最长衰落期
+            longest_decline_period = (df[df["drawdown"] >= 0].reset_index()["date"] - df[df["drawdown"] >= 0].reset_index()["date"].shift(1).fillna(df[df["drawdown"] >= 0].reset_index()["date"][0])).max().days
 
             # Calculate statistics value
-            start_date = df.index[0]
-            end_date = df.index[-1]
+            start_date = df.index[0]  # 开始交易的第一天（策略完成初始化的那一天）
+            end_date = df.index[-1]  # 回测数据的最后一天
+            total_days: int = len(df)  # 总的天数
+            profit_days: int = len(df[df["net_pnl"] > 0])  # 盈利天数
+            loss_days: int = len(df[df["net_pnl"] < 0])  # 亏损天数
 
-            total_days: int = len(df)
-            profit_days: int = len(df[df["net_pnl"] > 0])
-            loss_days: int = len(df[df["net_pnl"] < 0])
+            end_balance = df["balance"].iloc[-1]  # 最终权益
+            max_drawdown = df["drawdown"].min()  # 最大回撤
+            max_ddpercent = df["ddpercent"].min()  # 最大回撤率
+            max_drawdown_time = df["ddpercent"].idxmin()  # 最大回撤的日期
 
-            end_balance = df["balance"].iloc[-1]
-            max_drawdown = df["drawdown"].min()
-            max_ddpercent = df["ddpercent"].min()
-            max_drawdown_end = df["drawdown"].idxmin()
-
-            if isinstance(max_drawdown_end, date):
-                max_drawdown_start = df["balance"][:max_drawdown_end].idxmax()
-                max_drawdown_duration = (max_drawdown_end - max_drawdown_start).days
+            if isinstance(max_drawdown_time, date):
+                max_drawdown_start = df["balance"][:max_drawdown_time].idxmax()  # 最大衰退之前到达最高点的日期
+                new_high = df[max_drawdown_time:][df["drawdown"] >= 0].index
+                if not new_high.empty:
+                    max_drawdown_end = new_high[0]
+                else:
+                    max_drawdown_end = end_date
+                max_drawdown_duration = (max_drawdown_end - max_drawdown_start).days # 最大衰退持续时间
             else:
                 max_drawdown_duration = 0
+            
+            max_ddpercents = [max_ddpercent]
+            max_drawdown_durations = [max_drawdown_duration]
+            new_df = df.drop(pd.date_range(max_drawdown_start+timedelta(days=1), max_drawdown_end), axis=0)
+            for i in range(4):
+                new_max_ddpercent = new_df["ddpercent"].min()
+                new_max_drawdown_time = new_df["ddpercent"].idxmin()
+                if isinstance(new_max_drawdown_time, date):
+                    new_max_drawdown_start = df["balance"][:new_max_drawdown_time].idxmax()  # 最大衰退之前到达最高点的日期
+                    new_high = df[new_max_drawdown_time:][df["drawdown"] >= 0].index
+                    if not new_high.empty:
+                        new_max_drawdown_end = new_high[0]
+                    else:
+                        new_max_drawdown_end = end_date
+                    new_max_drawdown_duration = (new_max_drawdown_end - new_max_drawdown_start).days # 最大衰退持续时间
+                else:
+                    new_max_drawdown_duration = 0
 
-            total_net_pnl = df["net_pnl"].sum()
-            daily_net_pnl = total_net_pnl / total_days
+                max_ddpercents.append(new_max_ddpercent)
+                max_drawdown_durations.append(new_max_drawdown_duration)
+                new_df = new_df.drop(pd.date_range(new_max_drawdown_start+timedelta(days=1), new_max_drawdown_end))
 
-            total_commission = df["commission"].sum()
-            daily_commission = total_commission / total_days
+            top_5_ddpercent = np.mean(max_ddpercents)
+            top_5_drawdown_duration = np.mean(max_drawdown_durations)
 
-            total_slippage = df["slippage"].sum()
-            daily_slippage = total_slippage / total_days
+            total_net_pnl = df["net_pnl"].sum()  # 总收益
+            daily_net_pnl = total_net_pnl / total_days  # 日均总收益
 
-            total_turnover = df["turnover"].sum()
-            daily_turnover = total_turnover / total_days
+            total_commission = df["commission"].sum()  # 总手续费
+            daily_commission = total_commission / total_days  # 日均手续费
 
-            total_trade_count = df["trade_count"].sum()
-            daily_trade_count = total_trade_count / total_days
+            total_slippage = df["slippage"].sum()  # 总滑点成本
+            daily_slippage = total_slippage / total_days  # 日均滑点成本
 
-            total_return = (end_balance / self.capital - 1) * 100
-            annual_return = total_return / total_days * self.annual_days
-            daily_return = df["return"].mean() * 100
-            return_std = df["return"].std() * 100
+            total_turnover = df["turnover"].sum()  # 总成交额
+            daily_turnover = total_turnover / total_days  # 日均成交额
+
+            total_trade_count = df["trade_count"].sum()  # 总交易笔数
+            daily_trade_count = total_trade_count / total_days  # 日均交易笔数
+
+            total_return = (end_balance / self.capital - 1) * 100  # 总收益率
+            # annual_return = total_return / total_days * self.annual_days
+            annual_return = (np.exp(self.annual_days / total_days * np.log(end_balance / self.capital)) - 1) * 100  # 年化收益率
+            linear_regression_annual_return = (np.exp(self.annual_days / total_days * np.log(np.exp(df["LinearRegression_log_balance"].iloc[-1]) / np.exp(df["LinearRegression_log_balance"].iloc[0]))) - 1) * 100  # 回归年度回报率
+            daily_return = df["return"].mean() * 100  # 日均收益率，log盈亏率，底为e
+            return_std = df["return"].std() * 100  # 日均收益率的标准差
 
             if return_std:
-                sharpe_ratio = daily_return / return_std * np.sqrt(365)
+                # sharpe_ratio = daily_return / return_std * np.sqrt(365) # 夏普比率
+                # daily_risk_free: float = self.risk_free / np.sqrt(self.annual_days)
+                daily_risk_free: float = (np.exp(np.log(1+self.risk_free) / self.annual_days) - 1) * 100  # 由年化百分比收益率计算日均对数收益率，再乘100
+                sharpe_ratio: float = (daily_return - daily_risk_free) / return_std * np.sqrt(self.annual_days) # 计算夏普比率
             else:
                 sharpe_ratio = 0
 
-            return_drawdown_ratio = -total_return / max_ddpercent
+            return_drawdown_ratio = -total_return / max_ddpercent # 收益回撤比
+            mra_ratio = -annual_return / max_ddpercent # MRA比率
+
+            r_cubic = linear_regression_annual_return / (-top_5_ddpercent * (top_5_drawdown_duration / self.annual_days))
 
         # Output
         if output:
@@ -465,9 +585,10 @@ class BacktestingEngine:
 
             self.output(f"total return：\t{total_return:,.2f}%")
             self.output(f"annual return：\t{annual_return:,.2f}%")
+            self.output(f"linear regression annual return：\t{linear_regression_annual_return:,.2f}%")
             self.output(f"max drawdown: \t{max_drawdown:,.2f}")
             self.output(f"max drawdown percent: \t{max_ddpercent:,.2f}%")
-            self.output(f"max drawdown duration: \t{max_drawdown_duration}")
+            self.output(f"max drawdown duration: \t{max_drawdown_duration} days")
 
             self.output(f"total net pnl：\t{total_net_pnl:,.2f}")
             self.output(f"total commission：\t{total_commission:,.2f}")
@@ -485,6 +606,27 @@ class BacktestingEngine:
             self.output(f"return std：\t{return_std:,.2f}%")
             self.output(f"Sharpe Ratio：\t{sharpe_ratio:,.2f}")
             self.output(f"return drawdown ratio：\t{return_drawdown_ratio:,.2f}")
+            self.output(f"mra ratio：\t{mra_ratio:,.2f}")
+            self.output(f"r cubic：\t{r_cubic:,.2f}")
+
+            self.output(f"average duration：\t{average_duration}")
+            self.output(f"min duration：\t{min_duration}")
+            self.output(f"max duration：\t{max_duration}")
+            self.output(f"total open to close trade count：\t{total_open_to_close_trade_count}")
+            self.output(f"profit trade count：\t{profit_trade_count}")
+            self.output(f"loss trade count：\t{loss_trade_count}")
+            self.output(f"maximum number of consecutive losses：\t{maximum_number_of_consecutive_losses}")
+            self.output(f"longest decline period：\t{longest_decline_period} days")
+            self.output(f"winning percentage：\t{winning_percentage:,.2f}")
+            self.output(f"total profit：\t{total_profit:,.2f}")
+            self.output(f"total loss：\t{total_loss:,.2f}")
+            self.output(f"profit loss sharing ratio：\t{profit_loss_sharing_ratio:,.2f}")
+            self.output(f"average profit return：\t{average_profit_return:,.2f}%")
+            self.output(f"average loss return：\t{average_loss_return:,.2f}%")
+            self.output(f"max profit return：\t{max_profit_return:,.2f}%")
+            self.output(f"max loss return：\t{max_loss_return:,.2f}%")
+            self.output(f"average return：\t{average_return:,.2f}%")
+            self.output(f"e ratio：\t{e_ratio:,.2f}")
 
         statistics = {
             "start_date": start_date,
@@ -509,10 +651,29 @@ class BacktestingEngine:
             "daily_trade_count": daily_trade_count,
             "total_return": total_return,
             "annual_return": annual_return,
+            "linear_regression_annual_return": linear_regression_annual_return,
             "daily_return": daily_return,
             "return_std": return_std,
             "sharpe_ratio": sharpe_ratio,
             "return_drawdown_ratio": return_drawdown_ratio,
+            "mra_ratio": mra_ratio,
+            "r_cubic": r_cubic,     
+            "average_duration": average_duration,             # 新增指标
+            "min_duration": min_duration,
+            "max_duration": max_duration,
+            "total_open_to_close_trade_count": total_open_to_close_trade_count,
+            "profit_trade_count": profit_trade_count,
+            "loss_trade_count": loss_trade_count,
+            "winning_percentage": winning_percentage,
+            "total_profit": total_profit,
+            "total_loss": total_loss,
+            "profit_loss_sharing_ratio": profit_loss_sharing_ratio,
+            "average_profit_return": average_profit_return,
+            "average_loss_return": average_loss_return,
+            "max_profit_return": max_profit_return,
+            "max_loss_return": max_loss_return,
+            "average_return": average_return,
+            "e_ratio": e_ratio
         }
 
         # Filter potential error infinite value
@@ -535,9 +696,9 @@ class BacktestingEngine:
             return
 
         fig = make_subplots(
-            rows=4,
+            rows=5,
             cols=1,
-            subplot_titles=["Balance", "Drawdown", "Daily Pnl", "Pnl Distribution"],
+            subplot_titles=["Balance", "Log Balance", "Drawdown", "Daily Pnl", "Pnl Distribution"],
             vertical_spacing=0.06
         )
 
@@ -546,6 +707,18 @@ class BacktestingEngine:
             y=df["balance"],
             mode="lines",
             name="Balance"
+        )
+        log_balance_line = go.Scatter(
+            x=df.index,
+            y=df["log_balance"],
+            mode="lines",
+            name="Log Balance"
+        )
+        LinearRegression_log_balance_line = go.Scatter(
+            x=df.index,
+            y=df["LinearRegression_log_balance"],
+            mode="lines",
+            name="Linear Regression Log Balance"
         )
         drawdown_scatter = go.Scatter(
             x=df.index,
@@ -559,9 +732,11 @@ class BacktestingEngine:
         pnl_histogram = go.Histogram(x=df["net_pnl"], nbinsx=100, name="Days")
 
         fig.add_trace(balance_line, row=1, col=1)
-        fig.add_trace(drawdown_scatter, row=2, col=1)
-        fig.add_trace(pnl_bar, row=3, col=1)
-        fig.add_trace(pnl_histogram, row=4, col=1)
+        fig.add_trace(log_balance_line, row=2, col=1)
+        fig.add_trace(LinearRegression_log_balance_line, row=2, col=1)
+        fig.add_trace(drawdown_scatter, row=3, col=1)
+        fig.add_trace(pnl_bar, row=4, col=1)
+        fig.add_trace(pnl_histogram, row=5, col=1)
 
         fig.update_layout(height=1000, width=1000)
         fig.show()
@@ -867,14 +1042,17 @@ class BacktestingEngine:
 
         for stop_order in list(self.active_stop_orders.values()):
             # Check whether stop order can be triggered.
+            # 加上long_cross_price > 0 和 short_cross_price > 0 两个条件，程序更加稳健
             long_cross = (
                 stop_order.direction == Direction.LONG
                 and stop_order.price <= long_cross_price
+                and long_cross_price > 0
             )
 
             short_cross = (
                 stop_order.direction == Direction.SHORT
                 and stop_order.price >= short_cross_price
+                and short_cross_price > 0
             )
 
             if not long_cross and not short_cross:
@@ -1000,6 +1178,9 @@ class BacktestingEngine:
 
         self.active_stop_orders[stop_order.stop_orderid] = stop_order
         self.stop_orders[stop_order.stop_orderid] = stop_order
+        
+        # 这里必须回调一下on_stop_order，才能把挂着的stop_order记录下来
+        self.strategy.on_stop_order(stop_order)
 
         return stop_order.stop_orderid
 
@@ -1028,6 +1209,9 @@ class BacktestingEngine:
 
         self.active_limit_orders[order.vt_orderid] = order
         self.limit_orders[order.vt_orderid] = order
+        
+        # 这里回调一下on_order，把刚刚提交的限价单记录下来
+        self.strategy.on_order(order)
 
         return order.vt_orderid
 
