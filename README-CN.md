@@ -98,7 +98,7 @@ Numpy等科学计算的库，为了方便安装，这里建议使用Anaconda进�
 然后直接安装。同样最重要的是你要记得把git添加到系统路径中，不然在命令上中输入git会提示你找不到git工具。
 
 3. 利用conda 创建虚拟环境
-> conda create -n mytrader python==3.9
+> conda create -n mytrader python==3.10
 
 如果你之前创建了mytrader的虚拟环境，如果不想使用了，你可以先卸载掉，然后再创建一个mytrader，卸载的命令如下:
 > conda remove -n mytrader --all
@@ -107,21 +107,21 @@ Numpy等科学计算的库，为了方便安装，这里建议使用Anaconda进�
 > conda deactivate 
 
 然后再执行:
-> conda remove -n mytrader --all
+> conda remove -n yubaotrader --all
 
 这里mytrader是你的虚拟环境的名称，你当然可以取其他名字，
 但是记得要用英文。另外你的虚拟的路径最好不要出现中文的文件路径，不然可能出现一些未知问题。
 
 4. 激活你的虚拟环境名称
-> conda activate mytrader
+> conda activate yubaotrader
 
 5. 安装howtrader 
 
 直接输入如下命令
-> pip install git+https://github.com/51bitquant/howtrader.git
+> pip install git+https://github.com/BaoChunhui/howtrader.git
 
 如果你发现有bug或者有新的版本更新，你可以输入以下命令进行更新：
-> > pip install git+https://github.com/51bitquant/howtrader.git -U 
+> > pip install git+https://github.com/BaoChunhui/howtrader.git -U 
 
 如果提示你没有git, 那么你需要去安装git软件，具体的话参考系列课程的第十三课的视频。
 
