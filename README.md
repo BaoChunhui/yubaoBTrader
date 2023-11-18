@@ -122,10 +122,10 @@ then remove it:
 5. install howtrader
 
 run the command: 
-> pip install git+https://github.com/51bitquant/howtrader.git
+> pip install git+https://github.com/BaoChunhui/howtrader.git
 
 if you want to update to the latest version, use the command:
-> > pip install git+https://github.com/51bitquant/howtrader.git -U 
+> > pip install git+https://github.com/BaoChunhui/howtrader.git -U 
 
 if encounter the failure of installation TA-Lib, checkout the next step.
 
