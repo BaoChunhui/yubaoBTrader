@@ -139,6 +139,7 @@ Numpy等科学计算的库，为了方便安装，这里建议使用Anaconda进�
 > pip install nbformat
 
 安装TA-Lib：
+
 windows下：
 > pip install ./TA_Lib-0.4.24-cp310-cp310-win_amd64.whl
 
