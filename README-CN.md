@@ -1,33 +1,25 @@
 # HowTrader
 
-[中文文档](./README-CN.md)
+HowTrader 是一个数字货币量量化交易的框架，由于核心代码是Forked
+VNPY,所以用法和功能基本上跟VNPY相似。但是对VNPY源码的一些bugs进行了修复，并扩展了Tradingview信号的对接，以及增加网格策略等功能。
+由于VNPY的代码依赖过多，对一些用不到的代码进行了删除，保留核心的功能。
 
 
-What does Howtrader means? It means how to be a trader, especially a
-quant trader.
-
-HowTrader crypto quantitative trading framework, and was forked from
-VNPY, so the core codes、functions and useages are pretty similar to
-VNPY, but would be more easy to install and use. By the way, Howtrader
-fixes some bugs, add more functions and strategies to framework. We
-extend the TradingView signals and grid strategies to Howtrader and more
-codes.
+[howtrader开发文档](./docs/howtrader文档说明.md)
 
 
-## Howtrader VS VNPY
-1. some classes' definition are pretty different: for OrderData
-   、TradeData、ContractData, we replace float with Decimal to meet the
-   precision, theses classes are defined in howtrader.trader.object
-   module.
+## Howtrader 和 VNPY区别对比
+1. 个别类的定义不同: OrderData(订单数据)
+   、TradeData(成交数据)、ContractData(交易对信息)
+   这几个类，为了满足下单精度要求，把float类型替换成精度更高的Decimal。
+   他们的定义在howtrader.trader.object模块中。
   
-2. on_order and on_trade update sequence are different: in VNPY, ，the
-   on_order is always updated before the on_trade if the order was
-   traded. And in the cta strategy, the self.pos(the position data) was
-   calculated in the on_trade callback. So if we want to get the latest
-   self.pos value, we may need to define a variable to calculate the
-   latest position data. To solve this issue, we push the on_trade
-   before the on_order callback. check out the code to find out the
-   details: 
+2. on_order和on_trade的推送顺序不同:
+   VNPY中，会先推送订单状态的改变会先推送on_order，
+   如果有成交的数据话，在继续推送on_trade成交数据,
+   然后根据成交的数据计算cta策略中的self.pos仓位数据。但是在实际使用中，由于self.pos是系统计算的，
+   如果我们要想在on_order状态改变的时候，获得当前的pos仓位数据，
+   我们需要自己定义个current_pos变量来记录数据。为改变这种方式，在howtrader框架中，我们处理方式是，先推送on_trade成交数据，然后再推送on_order订单状态。具体代码参考gateway类中的实现，部分代码如下：
    ``` python
        
        def on_order(self, order: OrderData) -> None:
@@ -69,95 +61,140 @@ codes.
    
    ```
 
-3. gateways are different: solve issues like disconnecting from
-   exchange, and reconnecting.
+3. gateway实现的不同: 里面增加了断开重连，以及更多的处理细节，具体可以参考对比代码
 
-4. TradingView app to receive other 3rd party signals and algo trading
-   strategies, checkout the module: howtrader.app.tradingview
+4. 增加了Tradingview等第三方信号对接，具体可以查看howtrader.app.tradingview模块
 
 
-## Installation
+## 安装
 
-the framework depends on pandas, Numpy libraries, so we higly recommend
-you to install [Anaconda](https://www.anaconda.com/products/distribution).
+由于项目里面用到pandas, 
+Numpy等科学计算的库，为了方便安装，这里建议使用Anaconda进行安装。
 
-1. Install Anaconda, the Anaconda download website is
-   [here](https://www.anaconda.com/products/distribution), remember to
-   click "Add Conda to System Path" in the process of Anaconda
-   Installation. If you forget to do so, you might need to unistall and
-   reinstall the Anaconda, or just search how to add conda to you system
-   path, if you encounter the problem of "not found conda command".
+1. 安装Anaconda
+   具体下载地址如下[https://www.anaconda.com/products/distribution](https://www.anaconda.com/products/distribution)，在安装的过程中，记得要勾选把conda加入的系统目录，如果你忘记的话，可以卸载卸载，然后重新安装，或者查找下如何把conda添加进系统里面，不然你可能在命令行中
+   输入conda的时候，提示你找不到conda命令。
    
-   If you already install the anaconda before, you can simply update
-   your conda by runing the following command:
+   如果你已经安装了anaconda, 你要更新到最新版本的anaconda,
+   你可以通过一下命令进行更新: 
    > conda update conda
    
    > conda update anaconda
+   
+   对于linux
+   系统可以安装miniconda，具体的下载链接可以通过[https://docs.conda.io/en/latest/miniconda.html](https://docs.conda.io/en/latest/miniconda.html)找到。
+   这里我们选择下载安装3.9版本的.
+   
+   > wget https://repo.anaconda.com/miniconda/Miniconda3-py39_23.3.1-0-Linux-x86_64.sh
+  
+   > bash Miniconda3-py39_23.3.1-0-Linux-x86_64.sh # 执行安装
+   
+   其他使用参考网[易云课堂的视频](https://study.163.com/course/courseMain.htm?courseId=1209509824&share=2&shareId=480000001919830)
 
-2. install git 
+2. 安装git工具
 
-Install git is pretty simple, just download git from
-[https://git-scm.com/downloads], then install it, remember to add git to
-your system path. If you're using MacOX, git was integrated into the
-system, so you may not need to install git.
-3. create virtual env by conda
+建议你参考廖雪峰老师的博客[https://www.liaoxuefeng.com/wiki/896043488029600/896067074338496](https://www.liaoxuefeng.com/wiki/896043488029600/896067074338496)，里面有具体的安装教程。
+如果比较熟练掌握软件的安装可以直接通过网页[https://git-scm.com/downloads](https://git-scm.com/downloads)下载git,
+然后直接安装。同样最重要的是你要记得把git添加到系统路径中，不然在命令上中输入git会提示你找不到git工具。
+
+3. 利用conda 创建虚拟环境
 > conda create -n mytrader python==3.9
 
-mytrader is the name of your virtual env, if you have the mytrader
-virtual env before and the version is not 3.9, you can unistall it by
-following command:
-
+如果你之前创建了mytrader的虚拟环境，如果不想使用了，你可以先卸载掉，然后再创建一个mytrader，卸载的命令如下:
 > conda remove -n mytrader --all
 
-if you encounter an error, you may need to deactivate the mytrader by
-the command:
+如果提示错误的话，你要看你当前激活的虚拟环境是不是mytrader,如果当前激活的是mytrader，那么先执行:
 > conda deactivate 
 
-then remove it:
+然后再执行:
 > conda remove -n mytrader --all
 
-4. activate your virtual env:
+这里mytrader是你的虚拟环境的名称，你当然可以取其他名字，
+但是记得要用英文。另外你的虚拟的路径最好不要出现中文的文件路径，不然可能出现一些未知问题。
+
+4. 激活你的虚拟环境名称
 > conda activate mytrader
 
-5. install howtrader
+5. 安装howtrader 
 
-run the command: 
+直接输入如下命令
 > pip install git+https://github.com/51bitquant/howtrader.git
 
-if you want to update to the latest version, use the command:
+如果你发现有bug或者有新的版本更新，你可以输入以下命令进行更新：
 > > pip install git+https://github.com/51bitquant/howtrader.git -U 
 
-if encounter the failure of installation TA-Lib, checkout the next step.
+如果提示你没有git, 那么你需要去安装git软件，具体的话参考系列课程的第十三课的视频。
 
-## Install TA-Lib
 
-If you can't install the howtrader in Window system, the main reason may
-be the TA-Lib, here we go in to the detail of installing TA-Lib:
+如果你想通过代码来安装，可以把代码下载下来，然后切换到你的虚拟环境，或者使用当前的环境也是可以的， 在终端输入：
 
-1. open this url in your browser:[https://www.lfd.uci.edu/~gohlke/pythonlibs/#ta-lib](https://www.lfd.uci.edu/~gohlke/pythonlibs/#ta-lib)
+> pip install -r requirements.txt 
 
-2. search ta-lib in the website and download the TA-Lib.whl file: here
-   we found the TA_Lib‑0.4.24‑cp39‑cp39‑win_amd64.whl in the website and
-   we click download, for the TA_Lib-0.4.24, it means TA-Lib version is
-   0.4.24， cp39 is the python version is 3.9， amd64 your system
-   version is 64 bit, choose the right one and download it.
+> python setup.py install
 
-3. change your directory to your TA-Lib folder, and remember to activate
-   your virtual env to mytrader(if you use mytrader as your vitrual
-   env), then execute the following command: 
+但是我们直接推荐你用pip来安装，这样它能帮你把各种依赖处理好，减少错误的发生。
+
+## 卸载howtrader
+如果你发现代码更新不了或者其他问题，可以先卸载再安装, 命令如下：
+> pip uninstall howtrader
+
+## 查看版本
+```
+import howtrader
+
+print(howtrader.__version__)
+
+```
+
+## window TA-Lib安装过程
+
+如果提示你安装不了howtrader，那么大概率是因为ta-lib安装不成功， ta-lib具体安装过程如下：
+
+1. 打开下载地址: https://www.lfd.uci.edu/~gohlke/pythonlibs/#ta-lib
+
+2. 在网页中搜索ta-lib找到ta-lib的包:
+   TA_Lib‑0.4.24‑cp39‑cp39‑win_amd64.whl,
+   记得下载自己对应的python版本，TA_Lib-0.4.24, 是Ta-Lib版本为0.4.24， 
+   cp39就是python3.9版本， amd64就是64位的意思。
+
+3. 通过pip命令安装, 记得通过conda activate
+   mytrader来激活你的python解析器，同时命令行要切换到下载Ta-Lib的文件目录，不然提示你找不到要安装的TA_Lib文件，最后通过命令行来安装：
    
 > pip install TA_Lib‑0.4.24‑cp39‑cp39‑win_amd64.whl
 
-## how-to-use
+## macOS 安装TA-Lib
+1. 安装Xcode
+2. 安装brew, 文档地址https://docs.brew.sh/Installation
 
-create a python proejct, and create a main.py file,and set your
-project's interpreter to the mytrader(the virtual env you just create
-and config).
+3. 执行安装命令
+> brew install ta-lib
 
-then copy and paste the following code to main.py and run it, and you
-will see a howtrader folder beside the main.py, the howtrader folder
-contains the configs data(like exchange api key)、 your strategy
-settings and datas etc.
+4. 安装ta-lib的python库
+> pip install TA-Lib
+
+
+## 安装howtrader问题
+1. ssl错误，
+   可以参考该文档：[https://wenku.baidu.com/view/e6ad1208b7daa58da0116c175f0e7cd1842518e4.html](https://wenku.baidu.com/view/e6ad1208b7daa58da0116c175f0e7cd1842518e4.html)
+
+2. 安装完成后，提示没有找到QT，如提示***this application failed to start
+   because no QT platform plugin could be initialized***,
+   具体可以参考下面的博客: [https://www.freesion.com/article/8447805324/](https://www.freesion.com/article/8447805324/)
+
+3. 如果安装talib有问题，可以通过以下方式处理：
+> brew uninstall ta-lib
+
+> pip uninstall ta-lib
+
+> conda install -y -c conda-forge ta-lib
+
+具体参考改ta-lib的issue: [https://github.com/mrjbq7/ta-lib/issues/381](https://github.com/mrjbq7/ta-lib/issues/381)
+
+## 使用
+
+创建一个python空的python项目，里面创建一个main.py，然后把该项目的解析器设置为刚才创建的mytrader解析器。
+
+main.py文件的项目代码配置为如下:
 
 ``` python
 
@@ -240,17 +277,18 @@ if __name__ == "__main__":
 
 ```
 
+主要是从howtrader框架中导入所需的各个模块。具体各个模块的部分我们后面会通过文档来描述。
 
-## how-to-crawl binance kline data
+运行该main.py文件，系统会帮你创建一个叫howtrader的文件夹，里面放各种配置文件，已经log日志等。
 
-howdtrader use sliqte database as default, and also support mongodb and
-mysql if you want to use it. If you want to use other database, you can
-change the configuration in howtrader/vt_setting.json, here is the full
-configuration key, you can just config the corresponding values.
+## 爬取币安数据
+
+系统框架默认使用sqlite数据库，支持mongodb和mysql数据，如果你想使用mongodb或者mysql数据库，那么你需要你安装并修改howtrader/vt_setting.json进行修改，
+具体配置的字典参考框架的howtrader/trader/setting.py中的配置字典，其相应的配置字段如下：
 
 ```dict
 {
-    "font.family": "", # set font family if display error
+    "font.family": "",  # 设置字体，如果显示不正确的话，设置为系统的一个字体
     "font.size": 12,
 
     "log.active": True,
@@ -283,12 +321,9 @@ configuration key, you can just config the corresponding values.
     "database.password": ""
 }
 
-
 ```
 
-to crawl the Binance exchange kline data for backtesting, you just need
-to create a crawl_data.py file, just in the main.py directory. copy and
-paste the following codes:
+要通过代码爬取币安数据，可以创建一个叫crawl_data.py文件，文件层级跟main.py是一个层级，具体代码如下:
 
 ```
 """
@@ -310,7 +345,6 @@ BINANCE_SPOT_LIMIT = 1000
 BINANCE_FUTURE_LIMIT = 1500
 
 from howtrader.trader.constant import LOCAL_TZ
-
 from threading import Thread
 database: BaseDatabase = get_database()
 
@@ -512,22 +546,19 @@ if __name__ == '__main__':
 
 ```
 
-if you want to change start date or end date, you check out the codes.
-And the data will be stored in howtrader/database.db file.
+爬取数据的代码可以看一下，里面数据会存储在howtrader/database.db数据库文件中。
 
 
-## backtesting
+## 回测
+利用howtrader来回测，需要实现准备你的回测的数据，可以参考数据爬取的部分。
 
-for backtesting, here is the example. vt_symbol format like
-BTCUSDT.BINANCE, the first part is symbol, and other part is exchange
-name. Howtrader uses lower case for spot market, and upper case for
-future market.
+回测的代码如下：
 
 ```
 from howtrader.app.cta_strategy.backtesting import BacktestingEngine, OptimizationSetting
 from howtrader.trader.object import Interval
 from datetime import datetime
-from strategies.atr_rsi_strategy import AtrRsiStrategy  # import your strategy.
+from strategies.atr_rsi_strategy import AtrRsiStrategy  # 要导入你回测的策略，你自己开发的。
 
 engine = BacktestingEngine()
 engine.set_parameters(
@@ -556,28 +587,153 @@ setting.set_target("sharpe_ratio")
 setting.add_parameter("atr_length", 3, 39, 1)
 setting.add_parameter("atr_ma_length", 10, 30, 1)
 
-result = engine.run_ga_optimization(setting)  # optimization result
-print(result) # you can print the result.
+result = engine.run_ga_optimization(setting)  # 优化策略参数
+print(result) # 打印回测的结果，结果中会有比较好的结果值。
 
 
 ```
 
-for more example codes, checkout the examples:
+更多部分可以参考仓库中的示例代码:
 [https://github.com/51bitquant/howtrader/tree/main/examples](https://github.com/51bitquant/howtrader/tree/main/examples)
 
-## material codes:
+## 如何使用Howtrader进行手动快捷下单方式
 
-you can check out my github profile: [https:github.com/51bitquant](https:github.com/51bitquant)
+Howtrader 里面内置了快捷下单的配置，你可以通过配置快捷键的方式进行下单。
 
-howtrader course_codes: [https://github.com/51bitquant/course_codes](https://github.com/51bitquant/course_codes)
+要配置快捷下单按键，点击add config(添加配置)按钮
 
-## Contact
-Twitter: 51bitquant.eth
+<img src="./docs/imgs/howtrader_trader.png" alt= "add config"
+width="622" height="1510" />
 
-discord-community:
+
+这时会进入到配置的弹窗
+
+<img src="./docs/imgs/quick_trader_settings.png" alt= "add config"
+width="964" height="273" />
+
+
+1. HotKey: 选择你的快捷键，目前只支持0-9这个几个数字。 
+2. Buy/Sell:
+   做多或者做空，对于平仓而言，原来持有多头仓位，那么做空相应数量的仓位就是平仓。
+3. price: 下单的价格，可以选择一个参考价格,
+   可以是买1(bid_price_1)到买五(bid_price_5)
+   或者卖1(ask_price_1)到卖5(ask_price_5),
+   然后参考价格加上或者减去最小下单精度或者百分比
+4. volume:
+   下单数量，可以是固定数量，或者仓位的百分比。如果是仓位的百分比，那么写相应的数量，比如50，
+   那么计算的时候就是50%， 不用带上%符号。下单的价格百分比也是一样的。
+
+配资完成后，点击confirm(确认)，那么点击all configs 就可以看到相应的配置信息了。
+
+<img src="./docs/imgs/quick_trader_configs.png" alt= "add config"
+width="1004" height="343" />
+
+
+# 使用对接tradingview
+
+## 1. 购买服务器、域名和安装nginx软件
+如果你还没有服务器，可以购买一个服务器和域名，并把你的域名解析到当前服务器ip地址.
+
+**服务器推荐**：[https://www.ucloud.cn/site/active/kuaijie.html?invitation_code=C1x2EA81CD79B8C#dongjing](https://www.ucloud.cn/site/active/kuaijie.html?invitation_code=C1x2EA81CD79B8C#dongjing)
+
+完成上一步之后，你还需要安装nginx软件。window用户可以从这个网站下载[https://nginx.org/en/download.html](https://nginx.org/en/download.html)，
+
+通过上述地址下载完成后，解压到指定目录. 然后进入该目录，通过终端启动它:
+
+> start nginx.exe
+
+其他有用的命令如下:
+
+> nginx.exe -s stop
+
+> nginx.exe -s quit
+
+> nginx.exe -s stop
+
+> nginx.exe -s reload (reload)
+
+
+对于macOS系统, 你可以在终端(cmd 或者 terminal)输入一下命令安装:
+
+> brew install nginx
+
+MacOS 中的其他有用的命令如下:
+
+> brew services start nginx 
+
+> brew services restart nginx
+
+> brew services reload nginx
+
+如果提示你没有brew, 那么你需要安装下homebrew, 具体百度或者谷歌一下。
+
+对于 linux 的 ubuntu 系统可以通过apt来安装：
+
+> sudo apt update
+ 
+> sudo apt upgrade
+ 
+> sudo apt install build-essential
+
+> sudo apt install nginx
+
+
+安装完成后，我们需要对 nginx 的 nginx.conf 进行配置，该文件主要是配置 nginx
+端口转发。由于tradingview只能用80端口，所以你需要为你的web服务器进行端口转发。在ubuntu系统中，
+nginx 配置文件都在/etc/nginx/目录下。 主要的 nginx
+配置文件是/etc/nginx/nginx.conf。 我们要再在http里面添加如下配置信息：
+
+```
+server {
+        listen 80;
+        server_name your.dormain.com;
+        charset utf-8;
+
+        location / {
+          proxy_pass http://localhost:8888;
+        }
+
+    }
+
+```
+
+server_name 可以填写字符串或者你的ip地址都可以的， 比如： server_name
+xxx.xxx.xxx.xxx;
+
+修改nginx.conf后需要重启nginx 或者重新加载，你的配置才会生效， 最后运行main.py。
+
+> sudo service nginx start # 启动
+
+> sudo service nginx reload # 重新加载
+ 
+> sudo service nginx stop # 停止
+
+有用的命令：
+
+> ps -ef | grep nginx # 查看nginx 的进程
+
+
+进入nginx安装目录bin下，输入命令./nginx -t 可以查看配置文件是否正确
+
+> ./nginx -t 
+
+## 文档
+
+其他教程可以参考[文档](./docs/howtrader文档说明.md)
+
+## learning materials 学习资料
+
+学习资料请参考网易云课堂[《VNPY数字货币量化交易从零到实盘》](https://study.163.com/course/courseMain.htm?courseId=1210904816)
+你也可以在youtube或者b站找到相应的视频，搜索51bitquant即可找到视频。
+
+
+## 联系方式
+微信: bitquant51
+
+discord讨论群:
 [https://discord.gg/fgySfwG9eJ](https://discord.gg/fgySfwG9eJ)
 
-Binance Invite Link: 
+币安邀请链接
 [https://www.binancezh.pro/cn/futures/ref/51bitquant](https://www.binancezh.pro/cn/futures/ref/51bitquant)
 
  
