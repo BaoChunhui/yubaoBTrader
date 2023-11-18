@@ -118,10 +118,10 @@ Numpy等科学计算的库，为了方便安装，这里建议使用Anaconda进�
 5. 安装howtrader 
 
 直接输入如下命令
-> pip install git+https://<github token>@github.com/BaoChunhui/yubaoTrader.git
+> pip install git+https://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@github.com/BaoChunhui/yubaoTrader.git
 
 如果你发现有bug或者有新的版本更新，你可以输入以下命令进行更新：
-> pip install git+https://<github token>@github.com/BaoChunhui/yubaoTrader.git -U
+> pip install git+https://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@github.com/BaoChunhui/yubaoTrader.git -U
 
 安装其他python库：
 > pip install websocket-client
