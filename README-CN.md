@@ -1,7 +1,7 @@
 # yubaoTrader
 
-HowTrader 是一个数字货币量量化交易的框架，由于核心代码是Forked
-VNPY,所以用法和功能基本上跟VNPY相似。但是对VNPY源码的一些bugs进行了修复，并扩展了Tradingview信号的对接，以及增加网格策略等功能。
+yubaoTrader 是一个数字货币量量化交易的框架，由于核心代码是Forked
+Howtrader，而Howtrader是forked VNPY，所以用法和功能基本上跟VNPY相似。但是对源码的一些bugs进行了修复，并扩展了回测指标等多种功能。
 由于VNPY的代码依赖过多，对一些用不到的代码进行了删除，保留核心的功能。
 
 
