@@ -141,6 +141,7 @@ Numpy等科学计算的库，为了方便安装，这里建议使用Anaconda进�
 安装TA-Lib：
 windows下：
 > pip install ./TA_Lib-0.4.24-cp310-cp310-win_amd64.whl
+
 linux下：
 > wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
 
