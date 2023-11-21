@@ -684,6 +684,223 @@ class BacktestingEngine:
 
         self.output("finish calculating strategy's performance")
         return statistics
+    
+    def calculate_statistics_for_optimization(self, df: DataFrame = None, output=True):
+        """"""
+        self.output("start calculating strategy's performance")
+
+        # Check DataFrame input exterior
+        if df is None:
+            df = self.daily_df
+
+        # Check for init DataFrame
+        if df is None:
+            # Set all statistics to 0 if no trade.
+            start_date: str = ""
+            end_date: str = ""
+            total_days: int = 0
+            profit_days: int = 0
+            loss_days: int = 0
+            end_balance: float = 0
+            max_drawdown: float = 0
+            max_ddpercent: float = 0
+            max_drawdown_duration: int = 0
+            total_net_pnl: float = 0
+            daily_net_pnl: float = 0
+            total_commission: float = 0
+            daily_commission: float = 0
+            total_slippage: float = 0
+            daily_slippage: float = 0
+            total_turnover: float = 0
+            daily_turnover: float = 0
+            total_trade_count: int = 0
+            daily_trade_count: int = 0
+            total_return: float = 0
+            annual_return: float = 0
+            daily_return: float = 0
+            return_std: float = 0
+            sharpe_ratio: float = 0
+            return_drawdown_ratio: float = 0
+            r_cubic: float = 0
+        else:
+            # Calculate balance related time series data
+            df["balance"] = df["net_pnl"].cumsum() + self.capital  # 策略每天的净值
+            df["log_balance"] = np.log(df["balance"])  # 对数坐标下策略每天的净值
+            # 对数坐标下策略每天的净值做线性回归
+            x = df.reset_index().reset_index()["index"].values.reshape((-1, 1))
+            y = df["log_balance"].values
+            model = LinearRegression()
+            model.fit(x, y)
+            y_pred = model.predict(x)
+            df["LinearRegression_log_balance"] = y_pred
+
+            df["return"] = np.log(df["balance"] / df["balance"].shift(1)).fillna(0)  # 逐日盯市盈亏率，log盈亏率，底为e
+            df["highlevel"] = (
+                df["balance"].rolling(
+                    min_periods=1, window=len(df), center=False).max()
+            )  # 从开始交易的第一天（策略完成初始化的那一天）到当前这天净值到达过的最高位
+            df["drawdown"] = df["balance"] - df["highlevel"]  # 回撤
+            df["ddpercent"] = df["drawdown"] / df["highlevel"] * 100  # 百分比回撤
+
+            # Calculate statistics value
+            start_date = df.index[0]  # 开始交易的第一天（策略完成初始化的那一天）
+            end_date = df.index[-1]  # 回测数据的最后一天
+            total_days: int = len(df)  # 总的天数
+            profit_days: int = len(df[df["net_pnl"] > 0])  # 盈利天数
+            loss_days: int = len(df[df["net_pnl"] < 0])  # 亏损天数
+
+            end_balance = df["balance"].iloc[-1]  # 最终权益
+            max_drawdown = df["drawdown"].min()  # 最大回撤
+            max_ddpercent = df["ddpercent"].min()  # 最大回撤率
+            max_drawdown_time = df["ddpercent"].idxmin()  # 最大回撤的日期
+
+            if isinstance(max_drawdown_time, date):
+                max_drawdown_start = df["balance"][:max_drawdown_time].idxmax()  # 最大衰退之前到达最高点的日期
+                new_high = df[max_drawdown_time:][df["drawdown"] >= 0].index
+                if not new_high.empty:
+                    max_drawdown_end = new_high[0]
+                else:
+                    max_drawdown_end = end_date
+                max_drawdown_duration = (max_drawdown_end - max_drawdown_start).days # 最大衰退持续时间
+            else:
+                max_drawdown_duration = 0
+            
+            max_ddpercents = [max_ddpercent]
+            max_drawdown_durations = [max_drawdown_duration]
+            new_df = df.drop(pd.date_range(max_drawdown_start+timedelta(days=1), max_drawdown_end), axis=0)
+            for i in range(4):
+                new_max_ddpercent = new_df["ddpercent"].min()
+                new_max_drawdown_time = new_df["ddpercent"].idxmin()
+                if isinstance(new_max_drawdown_time, date):
+                    new_max_drawdown_start = df["balance"][:new_max_drawdown_time].idxmax()  # 最大衰退之前到达最高点的日期
+                    new_high = df[new_max_drawdown_time:][df["drawdown"] >= 0].index
+                    if not new_high.empty:
+                        new_max_drawdown_end = new_high[0]
+                    else:
+                        new_max_drawdown_end = end_date
+                    new_max_drawdown_duration = (new_max_drawdown_end - new_max_drawdown_start).days # 最大衰退持续时间
+                else:
+                    new_max_drawdown_duration = 0
+
+                max_ddpercents.append(new_max_ddpercent)
+                max_drawdown_durations.append(new_max_drawdown_duration)
+                new_df = new_df.drop(pd.date_range(new_max_drawdown_start+timedelta(days=1), new_max_drawdown_end))
+
+            top_5_ddpercent = np.mean(max_ddpercents)
+            top_5_drawdown_duration = np.mean(max_drawdown_durations)
+
+            total_net_pnl = df["net_pnl"].sum()  # 总收益
+            daily_net_pnl = total_net_pnl / total_days  # 日均总收益
+
+            total_commission = df["commission"].sum()  # 总手续费
+            daily_commission = total_commission / total_days  # 日均手续费
+
+            total_slippage = df["slippage"].sum()  # 总滑点成本
+            daily_slippage = total_slippage / total_days  # 日均滑点成本
+
+            total_turnover = df["turnover"].sum()  # 总成交额
+            daily_turnover = total_turnover / total_days  # 日均成交额
+
+            total_trade_count = df["trade_count"].sum()  # 总交易笔数
+            daily_trade_count = total_trade_count / total_days  # 日均交易笔数
+
+            total_return = (end_balance / self.capital - 1) * 100  # 总收益率
+            # annual_return = total_return / total_days * self.annual_days
+            annual_return = (np.exp(self.annual_days / total_days * np.log(end_balance / self.capital)) - 1) * 100  # 年化收益率
+            linear_regression_annual_return = (np.exp(self.annual_days / total_days * np.log(np.exp(df["LinearRegression_log_balance"].iloc[-1]) / np.exp(df["LinearRegression_log_balance"].iloc[0]))) - 1) * 100  # 回归年度回报率
+            daily_return = df["return"].mean() * 100  # 日均收益率，log盈亏率，底为e
+            return_std = df["return"].std() * 100  # 日均收益率的标准差
+
+            if return_std:
+                daily_risk_free: float = (np.exp(np.log(1+self.risk_free) / self.annual_days) - 1) * 100  # 由年化百分比收益率计算日均对数收益率，再乘100
+                sharpe_ratio: float = (daily_return - daily_risk_free) / return_std * np.sqrt(self.annual_days) # 计算夏普比率
+            else:
+                sharpe_ratio = 0
+
+            return_drawdown_ratio = -total_return / max_ddpercent # 收益回撤比
+            mra_ratio = -annual_return / max_ddpercent # MRA比率
+
+            r_cubic = linear_regression_annual_return / (-top_5_ddpercent * (top_5_drawdown_duration / self.annual_days))
+
+        # Output
+        if output:
+            self.output("-" * 30)
+            self.output(f"start date：\t{start_date}")
+            self.output(f"end date：\t{end_date}")
+
+            self.output(f"total days：\t{total_days}")
+            self.output(f"profit days：\t{profit_days}")
+            self.output(f"loss days：\t{loss_days}")
+
+            self.output(f"capital：\t{self.capital:,.2f}")
+            self.output(f"end balance：\t{end_balance:,.2f}")
+
+            self.output(f"total return：\t{total_return:,.2f}%")
+            self.output(f"annual return：\t{annual_return:,.2f}%")
+            self.output(f"linear regression annual return：\t{linear_regression_annual_return:,.2f}%")
+            self.output(f"max drawdown: \t{max_drawdown:,.2f}")
+            self.output(f"max drawdown percent: \t{max_ddpercent:,.2f}%")
+            self.output(f"max drawdown duration: \t{max_drawdown_duration} days")
+
+            self.output(f"total net pnl：\t{total_net_pnl:,.2f}")
+            self.output(f"total commission：\t{total_commission:,.2f}")
+            self.output(f"total slippage：\t{total_slippage:,.2f}")
+            self.output(f"total turnover：\t{total_turnover:,.2f}")
+            self.output(f"total trade count：\t{total_trade_count}")
+
+            self.output(f"daily net pnl：\t{daily_net_pnl:,.2f}")
+            self.output(f"daily commission：\t{daily_commission:,.2f}")
+            self.output(f"daily slippage：\t{daily_slippage:,.2f}")
+            self.output(f"daily turnover：\t{daily_turnover:,.2f}")
+            self.output(f"daily trade count：\t{daily_trade_count}")
+
+            self.output(f"daily return：\t{daily_return:,.2f}%")
+            self.output(f"return std：\t{return_std:,.2f}%")
+            self.output(f"Sharpe Ratio：\t{sharpe_ratio:,.2f}")
+            self.output(f"return drawdown ratio：\t{return_drawdown_ratio:,.2f}")
+            self.output(f"mra ratio：\t{mra_ratio:,.2f}")
+            self.output(f"r cubic：\t{r_cubic:,.2f}")
+
+        statistics = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "total_days": total_days,
+            "profit_days": profit_days,
+            "loss_days": loss_days,
+            "capital": self.capital,
+            "end_balance": end_balance,
+            "max_drawdown": max_drawdown,
+            "max_ddpercent": max_ddpercent,
+            "max_drawdown_duration": max_drawdown_duration,
+            "total_net_pnl": total_net_pnl,
+            "daily_net_pnl": daily_net_pnl,
+            "total_commission": total_commission,
+            "daily_commission": daily_commission,
+            "total_slippage": total_slippage,
+            "daily_slippage": daily_slippage,
+            "total_turnover": total_turnover,
+            "daily_turnover": daily_turnover,
+            "total_trade_count": total_trade_count,
+            "daily_trade_count": daily_trade_count,
+            "total_return": total_return,
+            "annual_return": annual_return,
+            "linear_regression_annual_return": linear_regression_annual_return,
+            "daily_return": daily_return,
+            "return_std": return_std,
+            "sharpe_ratio": sharpe_ratio,
+            "return_drawdown_ratio": return_drawdown_ratio,
+            "mra_ratio": mra_ratio,
+            "r_cubic": r_cubic,
+        }
+
+        # Filter potential error infinite value
+        for key, value in statistics.items():
+            if value in (np.inf, -np.inf):
+                value = 0
+            statistics[key] = np.nan_to_num(value)
+
+        self.output("finish calculating strategy's performance")
+        return statistics
 
     def show_chart(self, df: DataFrame = None):
         """"""
@@ -1439,7 +1656,8 @@ def optimize(
     engine.load_data()
     engine.run_backtesting()
     engine.calculate_result()
-    statistics = engine.calculate_statistics(output=False)
+    # statistics = engine.calculate_statistics(output=False)
+    statistics = engine.calculate_statistics_for_optimization(output=False)
 
     target_value = statistics[target_name]
     return (str(setting), target_value, statistics)
