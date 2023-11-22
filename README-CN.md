@@ -160,6 +160,17 @@ linux下：
 
 如果提示你没有git, 那么你需要去安装git软件，具体的话参考系列课程的第十三课的视频。
 
+在windows下还需安装jupyter lab：
+
+首先在base环境下
+> conda install -n yubaotrader ipykernel
+
+> conda activate yubaotrader
+
+> python -m ipykernel install --user --name yubaotrader --display-name "yubaotrader"
+
+> jupyter lab --port 8888
+
 
 如果你想通过代码来安装，可以把代码下载下来，然后切换到你的虚拟环境，或者使用当前的环境也是可以的， 在终端输入：
 
