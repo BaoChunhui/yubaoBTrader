@@ -162,7 +162,7 @@ linux下：
 
 在windows下还需安装jupyter lab：
 
-首先在base环境下
+进入conda的base环境，依次执行如下命令：
 > conda install -n yubaotrader ipykernel
 
 > conda activate yubaotrader
