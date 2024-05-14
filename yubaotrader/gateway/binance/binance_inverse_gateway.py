@@ -3,7 +3,6 @@
 """
 
 import urllib
-import hashlibSSLError
 import hmac
 import time
 from copy import copy
