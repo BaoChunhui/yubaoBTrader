@@ -1,0 +1,14 @@
+下载后解压，命令行进入setup.py所在目录
+pip install -r requirements.txt
+pip install .
+然后安装TA-Lib
+window系统的话执行 
+pip install .\TA_Lib-0.4.24-cp310-cp310-win_amd64.whl
+Linux的话执行
+wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
+tar -xzvf ta-lib-0.4.0-src.tar.gz
+cd ta-lib/
+./configure --prefix=/usr
+make
+sudo make install
+pip install TA-Lib
