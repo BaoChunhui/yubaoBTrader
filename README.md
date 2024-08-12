@@ -34,4 +34,4 @@ pip install ipython
 
 pip install jupyter
 
-把安装产生的临时文件build和yubaoCtrader.egg-info两个临时文件删掉
+把安装产生的临时文件build和yubaotrader.egg-info两个临时文件删掉
