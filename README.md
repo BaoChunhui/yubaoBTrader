@@ -25,3 +25,11 @@ make
 sudo make install
 
 pip install TA-Lib
+
+如果想用jupyter notebook：
+
+安装jupyter notebook
+
+pip install ipython
+
+pip install jupyter
