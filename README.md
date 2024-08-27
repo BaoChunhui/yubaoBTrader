@@ -1,3 +1,7 @@
+先创建python环境
+
+conda create -n yubaotrader python==3.10
+
 下载后解压，命令行进入setup.py所在目录
 
 pip install -r requirements.txt
