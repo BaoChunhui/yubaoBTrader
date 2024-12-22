@@ -21,8 +21,8 @@
     "database.timezone": "Asia/Shanghai",
     "database.name": "mysql",
     "database.database": "crypto",
-    "database.host": "10.3.3.100",
+    "database.host": "",
     "database.port": 3306,
     "database.user": "root",
-    "database.password": "456defDEF!@#"
+    "database.password": ""
 }

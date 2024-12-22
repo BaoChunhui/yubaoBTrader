@@ -14,7 +14,7 @@ engine.set_parameters(
     vt_symbol="ETH-USDT-OKX.OKX",
     interval=Interval.MINUTE,
     start=datetime(2018, 1, 11),
-    end=datetime(2024, 8, 11),
+    end=datetime(2024, 12, 21),
     rate=3.6/10000, # 手续费率
     slippage=0.05, # 滑点
     size=1, # 合约乘数
