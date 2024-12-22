@@ -55,7 +55,7 @@ def _get_trader_dir(temp_name: str) -> Tuple[Path, Path]:
     return cwd, temp_path
 
 
-TRADER_DIR, TEMP_DIR = _get_trader_dir("yubaoBtrader")
+TRADER_DIR, TEMP_DIR = _get_trader_dir("YubaoTrader")
 sys.path.append(str(TRADER_DIR))
 
 
