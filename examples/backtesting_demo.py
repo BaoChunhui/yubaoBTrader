@@ -1,8 +1,8 @@
 import warnings
 warnings.filterwarnings("ignore")
 
-from yubaotrader.app.cta_strategy.backtesting import BacktestingEngine, OptimizationSetting
-from yubaotrader.trader.object import Interval
+from yubaoBtrader.app.cta_strategy.backtesting import BacktestingEngine, OptimizationSetting
+from yubaoBtrader.trader.object import Interval
 from datetime import datetime
 from strategies.turtle_strategy import TurtleSignal
 

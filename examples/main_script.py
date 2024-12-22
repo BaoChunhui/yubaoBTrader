@@ -3,15 +3,15 @@ from time import sleep
 from datetime import datetime, time
 from logging import INFO
 
-from yubaotrader.event import EventEngine
-from yubaotrader.trader.setting import SETTINGS
-from yubaotrader.trader.engine import MainEngine
-from yubaotrader.app.cta_strategy.engine import CtaEngine
+from yubaoBtrader.event import EventEngine
+from yubaoBtrader.trader.setting import SETTINGS
+from yubaoBtrader.trader.engine import MainEngine
+from yubaoBtrader.app.cta_strategy.engine import CtaEngine
 
-from yubaotrader.gateway.binance import BinanceSpotGateway
-from yubaotrader.gateway.binance import BinanceUsdtGateway
-from yubaotrader.app.cta_strategy import CtaStrategyApp
-from yubaotrader.app.cta_strategy.base import EVENT_CTA_LOG
+from yubaoBtrader.gateway.binance import BinanceSpotGateway
+from yubaoBtrader.gateway.binance import BinanceUsdtGateway
+from yubaoBtrader.app.cta_strategy import CtaStrategyApp
+from yubaoBtrader.app.cta_strategy.base import EVENT_CTA_LOG
 
 SETTINGS["log.active"] = True  #
 SETTINGS["log.level"] = INFO

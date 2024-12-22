@@ -1,15 +1,15 @@
 from typing import Any
-from yubaotrader.app.cta_strategy import (
+from yubaoBtrader.app.cta_strategy import (
     CtaTemplate,
     StopOrder
 )
 
-from yubaotrader.trader.object import TickData, BarData, TradeData, OrderData
-from yubaotrader.trader.utility import BarGenerator
+from yubaoBtrader.trader.object import TickData, BarData, TradeData, OrderData
+from yubaoBtrader.trader.utility import BarGenerator
 
-from yubaotrader.trader.constant import Interval
+from yubaoBtrader.trader.constant import Interval
 from decimal import Decimal
-from yubaotrader.app.cta_strategy.engine import CtaEngine
+from yubaoBtrader.app.cta_strategy.engine import CtaEngine
 
 
 class Class11SimpleStrategy(CtaTemplate):

@@ -36,19 +36,19 @@ def get_install_requires():
 
 def get_version_string():
     global version
-    with open("yubaotrader/__init__.py", "rb") as f:
+    with open("yubaoBtrader/__init__.py", "rb") as f:
         version_line = re.search(
             r"__version__\s+=\s+(.*)", f.read().decode("utf-8")
         ).group(1)
         return str(ast.literal_eval(version_line))
 
 setup(
-    name="yubaotrader",
+    name="yubaoBtrader",
     version=get_version_string(),
     author="yubao",
     author_email="baochunhui1996@gmail.com",
     license="MIT",
-    url="https://www.vnpy.com",
+    url="https://github.com/BaoChunhui/yubaoBTrader",
     description="A framework for developing quant trading systems.",
     long_description=__doc__,
     keywords='quant quantitative investment trading algotrading',
