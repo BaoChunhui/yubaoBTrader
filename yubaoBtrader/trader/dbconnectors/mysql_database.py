@@ -16,16 +16,16 @@ from peewee import (
 )
 from playhouse.shortcuts import ReconnectMixin
 
-from yubaotrader.trader.constant import Exchange, Interval
-from yubaotrader.trader.object import BarData, TickData
-from yubaotrader.trader.database import (
+from yubaoBtrader.trader.constant import Exchange, Interval
+from yubaoBtrader.trader.object import BarData, TickData
+from yubaoBtrader.trader.database import (
     BaseDatabase,
     BarOverview,
     TickOverview,
     DB_TZ,
     convert_tz
 )
-from yubaotrader.trader.setting import SETTINGS
+from yubaoBtrader.trader.setting import SETTINGS
 
 
 class ReconnectMySQLDatabase(ReconnectMixin, PeeweeMySQLDatabase):
