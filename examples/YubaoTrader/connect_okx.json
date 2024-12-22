@@ -1,7 +1,7 @@
 {
-    "key": "d57dd9ae-5654-4e11-9d48-e9c6af7a2645",
-    "secret": "6A5440A7C444ED53EB9739D7D49BCF54",
-    "passphrase": "456defDEF!",
+    "key": "",
+    "secret": "",
+    "passphrase": "",
     "proxy_host": "127.0.0.1",
     "proxy_port": 10809,
     "server": "REAL"
