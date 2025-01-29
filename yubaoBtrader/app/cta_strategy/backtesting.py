@@ -805,6 +805,16 @@ class BacktestingEngine:
                 max_ddpercents.append(new_max_ddpercent)
                 max_drawdown_durations.append(new_max_drawdown_duration)
                 new_df = new_df.drop(pd.date_range(new_max_drawdown_start+timedelta(days=1), new_max_drawdown_end))
+            
+            df_trades = pd.DataFrame.from_dict([r.__dict__ for r in self.rm.get_results()])
+            df_trades["duration"] = df_trades["close_dt"] - df_trades["open_dt"]
+            df_trades["balance"] = df_trades["pnl"].cumsum() + self.capital
+            df_trades["return"] = ((df_trades["balance"] / df_trades["balance"].shift(1) - 1) * 100).fillna(0)  # 主笔对冲盈亏率
+            df_trades["return"][0] = (df_trades["pnl"][0] / self.capital) * 100
+            total_open_to_close_trade_count: int = df_trades.shape[0]  # 交易次数，从开仓到全部平仓算一次
+            profit_trade_count: int = df_trades[df_trades['pnl'] > 0].shape[0]  # 盈利的交易次数
+            loss_trade_count: int = df_trades[df_trades['pnl'] < 0].shape[0]  # 亏损的交易次数
+            winning_percentage: float = round((profit_trade_count/total_open_to_close_trade_count) * 100, 2)  # 胜率
 
             top_5_ddpercent = np.mean(max_ddpercents)
             top_5_drawdown_duration = np.mean(max_drawdown_durations)
